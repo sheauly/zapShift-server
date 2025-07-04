@@ -121,7 +121,8 @@ async function run() {
                 const query = userEmail ? { email: userEmail } : {}
                 const options = { sort: { paid_at: -1 } };
 
-                const payments = await paymentsCollection.find(query, options).toArray().res.send(payments);
+                const payments = await paymentsCollection.find(query, options).toArray();
+                res.send(payments);
 
             }
             catch (error) {
@@ -130,13 +131,27 @@ async function run() {
             }
         })
 
+        app.post("/tracking", async (req, res) => {
+            const { tracking_id, parcel_id, status, message, updated_by } = req.body;
+
+            const log = {
+                tracking_id,
+                parcel_id: parcel_id ? new ObjectId(parcel_id) : undefined,
+                status,
+                message,
+                time: new Date(),
+                updated_by,
+            }
+        });
+
+
         // POst: Record payment and update parcel status
         app.post('/payments', async (req, res) => {
 
             try {
                 const { parcelId, email, amount, paymentMethod, transactionId } = req.body;
 
-
+                console.log(req.body);
                 // 1. update parcel's payment_staus
                 const updateResult = await parcelCollection.updateOne(
                     { _id: new ObjectId(parcelId) },
