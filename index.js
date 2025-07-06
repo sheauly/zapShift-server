@@ -34,14 +34,53 @@ async function run() {
 
         const db = client.db('percelDB');
         const parcelCollection = db.collection('parcels');
-        const paymentsCollection = db.collection('payment')
+        const paymentsCollection = db.collection('payment');
+        const usersCollection = db.collection('users');
 
-        app.get('/parcels', async (req, res) => {
-            const parcel = await parcelCollection.find().toArray();
-            res.send(parcel);
+        // custom middlewares
+        const verifyFBToken = async (req, res, next) => {
+            const authHeader = req.headers.Athorization
+            if (!authHeader) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+            next();
+        }
+
+
+        app.post('/users', async (req, res) => {
+            const email = req.body.email;
+            const userExists = await usersCollection.findOne({ email })
+            if (userExists) {
+                return res.status(200).send({ message: 'user already exists', insertOne: false });
+            }
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            res.send(result)
         })
+
+        // app.get('/parcels', async (req, res) => {
+        //     const parcel = await parcelCollection.find().toArray();
+        //     res.send(parcel);
+        // })
         // paarcels api
         // Get: All parcels  or parcels by user (created_by), sorted by latest 
+
+        app.get('/parcels', async (req, res) => {
+            try {
+                const userEmail = req.query.email;
+
+                const query = userEmail ? { created_by: userEmail } : {};
+                const options = {
+                    sort: { createdAt: -1 },
+                };
+                const parcels = await parcelCollection.find(query, options).toArray();
+                res.send(parcels);
+            }
+            catch (error) {
+                console.error('error featching parcels', error);
+                res.status(500).send({ message: "Falled to get " })
+            }
+        })
         app.get('/parcels', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -115,7 +154,9 @@ async function run() {
 
         });
 
-        app.get('/payments', async (req, res) => {
+        app.get('/payments', verifyFBToken, async (req, res) => {
+
+
             try {
                 const userEmail = req.query.email;
                 const query = userEmail ? { email: userEmail } : {}
